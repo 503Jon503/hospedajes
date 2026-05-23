@@ -2,54 +2,98 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Hospedaje;
+use App\Models\Reserva;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 
 class ReservaWebController extends Controller
 {
-    private $apiUrl = 'http://127.0.0.1:8000/api/v1';
+    private function formatReserva($r)
+    {
+        return [
+            'id'           => $r->id,
+            'fecha_inicio' => $r->fecha_inicio->format('d/m/Y'),
+            'fecha_fin'    => $r->fecha_fin->format('d/m/Y'),
+            'num_personas' => $r->num_personas,
+            'total'        => $r->total,
+            'estado'       => $r->estado,
+            'notas'        => $r->notas,
+            'cliente'      => $r->cliente ? ['nombre' => $r->cliente->nombre, 'apellido' => $r->cliente->apellido] : null,
+            'hospedaje'    => $r->hospedaje ? ['nombre' => $r->hospedaje->nombre, 'ubicacion' => $r->hospedaje->ubicacion] : null,
+        ];
+    }
 
     public function index()
     {
-        $response = Http::withToken(session('user_token'))->get("{$this->apiUrl}/reservas");
-        $reservas = $response->successful() ? $response->json() : [];
+        $user = session('user_data');
+        $query = Reserva::with(['cliente', 'hospedaje']);
+
+        if ($user['rol'] === 'admin') {
+            $reservas = $query->get();
+        } elseif ($user['rol'] === 'propietario') {
+            $reservas = $query->whereHas('hospedaje', fn($q) => $q->where('user_id', $user['id']))->get();
+        } else {
+            $reservas = $query->where('user_id', $user['id'])->get();
+        }
+
+        $data = $reservas->map(fn($r) => $this->formatReserva($r))->toArray();
+        $reservas = ['data' => $data];
         return view('reservas.index', compact('reservas'));
     }
 
     public function store(Request $request)
     {
-        $response = Http::withToken(session('user_token'))
-            ->post("{$this->apiUrl}/reservas", $request->all());
+        $request->validate([
+            'hospedaje_id' => 'required|exists:hospedajes,id',
+            'fecha_inicio' => 'required|date',
+            'fecha_fin'    => 'required|date|after:fecha_inicio',
+            'num_personas' => 'required|integer|min:1',
+        ]);
 
-        if ($response->successful()) {
-            return redirect()->route('reservas.index')->with('success', 'Reserva creada exitosamente');
+        $hospedaje = Hospedaje::findOrFail($request->hospedaje_id);
+
+        $fechaInicio = \Carbon\Carbon::parse($request->fecha_inicio)->format('Y-m-d');
+        $fechaFin    = \Carbon\Carbon::parse($request->fecha_fin)->format('Y-m-d');
+
+        $conflicto = Reserva::where('hospedaje_id', $hospedaje->id)
+            ->where('estado', '!=', 'cancelada')
+            ->where(function ($q) use ($fechaInicio, $fechaFin) {
+                $q->whereBetween('fecha_inicio', [$fechaInicio, $fechaFin])
+                  ->orWhereBetween('fecha_fin', [$fechaInicio, $fechaFin]);
+            })->exists();
+
+        if ($conflicto) {
+            return back()->with('error', 'El hospedaje no está disponible en esas fechas');
         }
 
-        $mensaje = $response->json('message', 'Error al crear la reserva');
-        return back()->with('error', $mensaje)->withInput();
+        $dias  = \Carbon\Carbon::parse($fechaInicio)->diffInDays($fechaFin);
+        $total = $dias * $hospedaje->precio_noche;
+
+        Reserva::create([
+            'user_id'      => session('user_data.id'),
+            'hospedaje_id' => $request->hospedaje_id,
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin'    => $fechaFin,
+            'num_personas' => $request->num_personas,
+            'total'        => $total,
+            'notas'        => $request->notas,
+            'estado'       => 'pendiente',
+        ]);
+
+        return redirect()->route('reservas.index')->with('success', 'Reserva creada exitosamente');
     }
 
     public function cancelar($id)
     {
-        $response = Http::withToken(session('user_token'))
-            ->patch("{$this->apiUrl}/reservas/{$id}/cancelar");
-
-        if ($response->successful()) {
-            return redirect()->route('reservas.index')->with('success', 'Reserva cancelada exitosamente');
-        }
-
-        return back()->with('error', 'Error al cancelar la reserva');
+        $reserva = Reserva::findOrFail($id);
+        $reserva->update(['estado' => 'cancelada']);
+        return redirect()->route('reservas.index')->with('success', 'Reserva cancelada exitosamente');
     }
 
     public function confirmar($id)
     {
-        $response = Http::withToken(session('user_token'))
-            ->patch("{$this->apiUrl}/reservas/{$id}/confirmar");
-
-        if ($response->successful()) {
-            return redirect()->route('reservas.index')->with('success', 'Reserva confirmada exitosamente');
-        }
-
-        return back()->with('error', 'Error al confirmar la reserva');
+        $reserva = Reserva::findOrFail($id);
+        $reserva->update(['estado' => 'confirmada']);
+        return redirect()->route('reservas.index')->with('success', 'Reserva confirmada exitosamente');
     }
 }

@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthWebController extends Controller
 {
-    private $apiUrl = 'http://127.0.0.1:8000/api/v1';
-
     public function showLogin()
     {
         if (session()->has('user_token')) {
@@ -24,19 +24,25 @@ class AuthWebController extends Controller
             'password' => 'required',
         ]);
 
-        $response = Http::post("{$this->apiUrl}/login", [
-            'email'    => $request->email,
-            'password' => $request->password,
-        ]);
+        $user = User::where('email', $request->email)->first();
 
-        if ($response->successful()) {
-            $data = $response->json();
-            session(['user_token' => $data['token']]);
-            session(['user_data'  => $data['user']]);
-            return redirect()->route('home')->with('success', '¡Bienvenido ' . $data['user']['nombre'] . '!');
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return back()->with('error', 'Credenciales incorrectas')->withInput();
         }
 
-        return back()->with('error', 'Credenciales incorrectas')->withInput();
+        $token = $user->createToken('web_token')->plainTextToken;
+
+        session(['user_token' => $token]);
+        session(['user_data'  => [
+            'id'       => $user->id,
+            'nombre'   => $user->nombre,
+            'apellido' => $user->apellido,
+            'email'    => $user->email,
+            'telefono' => $user->telefono,
+            'rol'      => $user->rol,
+        ]]);
+
+        return redirect()->route('home')->with('success', '¡Bienvenido ' . $user->nombre . '!');
     }
 
     public function showRegister()
@@ -50,30 +56,44 @@ class AuthWebController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'nombre'             => 'required|string',
-            'apellido'           => 'required|string',
-            'email'              => 'required|email',
-            'telefono'           => 'nullable|string',
-            'rol'                => 'required|in:cliente,propietario',
-            'password'           => 'required|min:8|confirmed',
+            'nombre'            => 'required|string|max:100',
+            'apellido'          => 'required|string|max:100',
+            'email'             => 'required|email|unique:users,email',
+            'telefono'          => 'nullable|string|max:20',
+            'rol'               => 'required|in:cliente,propietario',
+            'password'          => 'required|min:8|confirmed',
         ]);
 
-        $response = Http::post("{$this->apiUrl}/register", $request->all());
+        $user = User::create([
+            'nombre'   => $request->nombre,
+            'apellido' => $request->apellido,
+            'email'    => $request->email,
+            'telefono' => $request->telefono,
+            'rol'      => $request->rol,
+            'password' => Hash::make($request->password),
+        ]);
 
-        if ($response->successful()) {
-            $data = $response->json();
-            session(['user_token' => $data['token']]);
-            session(['user_data'  => $data['user']]);
-            return redirect()->route('home')->with('success', '¡Cuenta creada exitosamente!');
-        }
+        $token = $user->createToken('web_token')->plainTextToken;
 
-        $errors = $response->json('errors', []);
-        return back()->withErrors($errors)->withInput();
+        session(['user_token' => $token]);
+        session(['user_data'  => [
+            'id'       => $user->id,
+            'nombre'   => $user->nombre,
+            'apellido' => $user->apellido,
+            'email'    => $user->email,
+            'telefono' => $user->telefono,
+            'rol'      => $user->rol,
+        ]]);
+
+        return redirect()->route('home')->with('success', '¡Cuenta creada exitosamente!');
     }
 
     public function logout(Request $request)
     {
-        Http::withToken(session('user_token'))->post("{$this->apiUrl}/logout");
+        $user = User::where('id', session('user_data.id'))->first();
+        if ($user) {
+            $user->tokens()->delete();
+        }
         session()->flush();
         return redirect()->route('login')->with('success', 'Sesión cerrada exitosamente');
     }
