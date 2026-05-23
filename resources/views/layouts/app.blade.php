@@ -45,6 +45,13 @@
                     <a class="nav-link" href="{{ route('reservas.index') }}">Mis Reservas</a>
                 </li>
                 @endif
+                @if(session('user_data.rol') === 'admin')
+                <li class="nav-item">
+                    <a class="nav-link text-warning fw-bold" href="{{ route('admin.index') }}">
+                        <i class="bi bi-speedometer2"></i> Admin
+                    </a>
+                </li>
+                @endif
             </ul>
             <ul class="navbar-nav">
                 @if(session('user_token'))

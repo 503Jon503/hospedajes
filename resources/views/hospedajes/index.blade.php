@@ -18,20 +18,26 @@
     </div>
 
     <form action="{{ route('hospedajes.index') }}" method="GET" class="row g-2 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <input type="text" name="buscar" class="form-control" placeholder="Buscar..." value="{{ request('buscar') }}">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <input type="text" name="ubicacion" class="form-control" placeholder="Ubicación" value="{{ request('ubicacion') }}">
         </div>
         <div class="col-md-2">
             <select name="tipo" class="form-select">
-                <option value="">Todos</option>
+                <option value="">Todos los tipos</option>
                 <option value="hotel" {{ request('tipo') == 'hotel' ? 'selected' : '' }}>Hotel</option>
                 <option value="rancho" {{ request('tipo') == 'rancho' ? 'selected' : '' }}>Rancho</option>
                 <option value="casa" {{ request('tipo') == 'casa' ? 'selected' : '' }}>Casa</option>
                 <option value="apartamento" {{ request('tipo') == 'apartamento' ? 'selected' : '' }}>Apartamento</option>
             </select>
+        </div>
+        <div class="col-md-1">
+            <input type="number" name="precio_min" class="form-control" placeholder="$ Min" value="{{ request('precio_min') }}" min="0">
+        </div>
+        <div class="col-md-1">
+            <input type="number" name="precio_max" class="form-control" placeholder="$ Max" value="{{ request('precio_max') }}" min="0">
         </div>
         <div class="col-md-2">
             <button type="submit" class="btn btn-primary w-100">
