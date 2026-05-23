@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hospedaje;
+use App\Models\Reserva;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 
 class HospedajeWebController extends Controller
 {
@@ -47,6 +47,9 @@ class HospedajeWebController extends Controller
         if ($request->ubicacion) {
             $query->filtrarPorUbicacion($request->ubicacion);
         }
+        if ($request->precio_min && $request->precio_max) {
+            $query->filtrarPorPrecio($request->precio_min, $request->precio_max);
+        }
 
         $data = $query->orderBy('created_at', 'desc')->get()->map(fn($h) => $this->formatHospedaje($h))->toArray();
         $hospedajes = ['data' => $data];
@@ -57,12 +60,33 @@ class HospedajeWebController extends Controller
     {
         $h = Hospedaje::with(['propietario', 'calificaciones.cliente'])->findOrFail($id);
         $hospedaje = $this->formatHospedaje($h);
-        return view('hospedajes.show', compact('hospedaje'));
+
+        $reservas = Reserva::where('hospedaje_id', $id)
+            ->where('estado', '!=', 'cancelada')
+            ->get(['fecha_inicio', 'fecha_fin']);
+
+        $fechasOcupadas = [];
+        foreach ($reservas as $reserva) {
+            $fechasOcupadas[] = [
+                'from' => $reserva->fecha_inicio->format('Y-m-d'),
+                'to'   => $reserva->fecha_fin->format('Y-m-d'),
+            ];
+        }
+
+        $puedeCalificar = false;
+        if (session('user_token') && session('user_data.rol') === 'cliente') {
+            $puedeCalificar = Reserva::where('user_id', session('user_data.id'))
+                ->where('hospedaje_id', $id)
+                ->where('estado', 'confirmada')
+                ->where('fecha_fin', '<=', now()->format('Y-m-d'))
+                ->exists();
+        }
+
+        return view('hospedajes.show', compact('hospedaje', 'fechasOcupadas', 'puedeCalificar'));
     }
 
     public function misHospedajes()
     {
-        $token = session('user_token');
         $userData = session('user_data');
         $data = Hospedaje::with(['calificaciones'])
             ->where('user_id', $userData['id'])
@@ -78,14 +102,27 @@ class HospedajeWebController extends Controller
 
     public function store(Request $request)
     {
-        $response = Http::withToken(session('user_token'))
-            ->post('http://127.0.0.1:8000/api/v1/hospedajes', $request->except('imagen'));
+        $data = $request->validate([
+            'nombre'       => 'required|string|max:150',
+            'tipo'         => 'required|in:hotel,rancho,casa,apartamento',
+            'descripcion'  => 'required|string',
+            'ubicacion'    => 'required|string|max:200',
+            'departamento' => 'required|string|max:100',
+            'precio_noche' => 'required|numeric|min:1',
+            'capacidad'    => 'required|integer|min:1',
+            'imagen'       => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'estado'       => 'nullable|in:disponible,no_disponible',
+        ]);
 
-        if ($response->successful()) {
-            return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje creado exitosamente');
+        $data['user_id'] = session('user_data.id');
+
+        if ($request->hasFile('imagen')) {
+            $data['imagen'] = $request->file('imagen')->store('hospedajes', 'public');
         }
 
-        return back()->with('error', 'Error al crear el hospedaje')->withInput();
+        Hospedaje::create($data);
+
+        return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje creado exitosamente');
     }
 
     public function edit($id)
@@ -97,19 +134,33 @@ class HospedajeWebController extends Controller
 
     public function update(Request $request, $id)
     {
-        $response = Http::withToken(session('user_token'))
-            ->put("http://127.0.0.1:8000/api/v1/hospedajes/{$id}", $request->all());
+        $hospedaje = Hospedaje::findOrFail($id);
 
-        if ($response->successful()) {
-            return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje actualizado exitosamente');
+        $data = $request->validate([
+            'nombre'       => 'sometimes|string|max:150',
+            'tipo'         => 'sometimes|in:hotel,rancho,casa,apartamento',
+            'descripcion'  => 'sometimes|string',
+            'ubicacion'    => 'sometimes|string|max:200',
+            'departamento' => 'sometimes|string|max:100',
+            'precio_noche' => 'sometimes|numeric|min:1',
+            'capacidad'    => 'sometimes|integer|min:1',
+            'imagen'       => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'estado'       => 'sometimes|in:disponible,no_disponible',
+        ]);
+
+        if ($request->hasFile('imagen')) {
+            $data['imagen'] = $request->file('imagen')->store('hospedajes', 'public');
         }
 
-        return back()->with('error', 'Error al actualizar')->withInput();
+        $hospedaje->update($data);
+
+        return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje actualizado exitosamente');
     }
 
     public function destroy($id)
     {
-        Http::withToken(session('user_token'))->delete("http://127.0.0.1:8000/api/v1/hospedajes/{$id}");
+        $hospedaje = Hospedaje::findOrFail($id);
+        $hospedaje->delete();
         return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje eliminado exitosamente');
     }
 }

@@ -32,6 +32,14 @@
 
             <div class="card mb-4">
                 <div class="card-body">
+                    <h5><i class="bi bi-calendar3 text-primary"></i> Disponibilidad</h5>
+                    <p class="text-muted small">Las fechas en <span class="text-danger fw-bold">rojo</span> están ocupadas y no se pueden seleccionar.</p>
+                    <input id="calendario" class="form-control" placeholder="Ver calendario de disponibilidad" readonly>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
                     <h5><i class="bi bi-star-fill text-warning"></i> Calificaciones</h5>
                     @if(empty($hospedaje['calificaciones']))
                         <p class="text-muted">Aún no hay calificaciones.</p>
@@ -47,16 +55,16 @@
                                 </span>
                             </div>
                             <p class="mb-0 text-muted small">{{ $cal['comentario'] }}</p>
+                            <small class="text-muted">{{ $cal['creado_en'] }}</small>
                         </div>
                         @endforeach
                     @endif
 
-                    @if(session('user_token') && session('user_data.rol') === 'cliente')
+                    @if($puedeCalificar)
                     <hr>
                     <h6>Deja tu calificación</h6>
-                    <form action="{{ route('reservas.store') }}" method="POST">
+                    <form action="{{ route('calificaciones.store', $hospedaje['id']) }}" method="POST">
                         @csrf
-                        <input type="hidden" name="hospedaje_id" value="{{ $hospedaje['id'] }}">
                         <div class="mb-2">
                             <label class="form-label">Puntuación</label>
                             <select name="puntuacion" class="form-select">
@@ -70,8 +78,15 @@
                         <div class="mb-2">
                             <textarea name="comentario" class="form-control" rows="3" placeholder="Escribe tu comentario..."></textarea>
                         </div>
-                        <button type="submit" class="btn btn-warning btn-sm">Enviar calificación</button>
+                        <button type="submit" class="btn btn-warning btn-sm">
+                            <i class="bi bi-star"></i> Enviar calificación
+                        </button>
                     </form>
+                    @elseif(session('user_token') && session('user_data.rol') === 'cliente')
+                    <hr>
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Podrás calificar este hospedaje una vez que tu estancia haya concluido.
+                    </div>
                     @endif
                 </div>
             </div>
@@ -101,11 +116,11 @@
                         <input type="hidden" name="hospedaje_id" value="{{ $hospedaje['id'] }}">
                         <div class="mb-3">
                             <label class="form-label">Fecha de llegada</label>
-                            <input type="date" name="fecha_inicio" class="form-control" min="{{ date('Y-m-d') }}" required>
+                            <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" min="{{ date('Y-m-d') }}" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Fecha de salida</label>
-                            <input type="date" name="fecha_fin" class="form-control" min="{{ date('Y-m-d', strtotime('+1 day')) }}" required>
+                            <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" min="{{ date('Y-m-d', strtotime('+1 day')) }}" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Número de personas</label>
@@ -133,4 +148,47 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .flatpickr-day.disabled {
+        background-color: #ffcccc !important;
+        color: #cc0000 !important;
+        text-decoration: line-through;
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+<script>
+    const fechasOcupadas = @json($fechasOcupadas ?? []);
+
+    flatpickr("#calendario", {
+        mode: "range",
+        inline: true,
+        locale: "es",
+        disable: fechasOcupadas,
+        dateFormat: "Y-m-d",
+    });
+
+    flatpickr("#fecha_inicio", {
+        locale: "es",
+        minDate: "today",
+        disable: fechasOcupadas,
+        dateFormat: "Y-m-d",
+        onChange: function(selectedDates) {
+            let nextDay = new Date(selectedDates[0]);
+            nextDay.setDate(nextDay.getDate() + 1);
+            fechaFinPicker.set('minDate', nextDay);
+        }
+    });
+
+    const fechaFinPicker = flatpickr("#fecha_fin", {
+        locale: "es",
+        minDate: "today",
+        disable: fechasOcupadas,
+        dateFormat: "Y-m-d",
+    });
+</script>
 @endsection
