@@ -18,14 +18,20 @@ class Reserva extends Model
         'num_personas',
         'total',
         'estado',
+        'pago_estado',
+        'stripe_payment_intent',
+        'cliente_confirmo_llegada',
+        'fecha_confirmacion_llegada',
         'notas',
     ];
 
     protected $casts = [
-        'fecha_inicio' => 'date',
-        'fecha_fin' => 'date',
-        'total' => 'decimal:2',
-        'num_personas' => 'integer',
+        'fecha_inicio'              => 'date',
+        'fecha_fin'                 => 'date',
+        'total'                     => 'decimal:2',
+        'num_personas'              => 'integer',
+        'cliente_confirmo_llegada'  => 'boolean',
+        'fecha_confirmacion_llegada'=> 'datetime',
     ];
 
     public function cliente()

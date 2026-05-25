@@ -11,15 +11,18 @@ class ReservaWebController extends Controller
     private function formatReserva($r)
     {
         return [
-            'id'           => $r->id,
-            'fecha_inicio' => $r->fecha_inicio->format('d/m/Y'),
-            'fecha_fin'    => $r->fecha_fin->format('d/m/Y'),
-            'num_personas' => $r->num_personas,
-            'total'        => $r->total,
-            'estado'       => $r->estado,
-            'notas'        => $r->notas,
-            'cliente'      => $r->cliente ? ['nombre' => $r->cliente->nombre, 'apellido' => $r->cliente->apellido] : null,
-            'hospedaje'    => $r->hospedaje ? ['nombre' => $r->hospedaje->nombre, 'ubicacion' => $r->hospedaje->ubicacion] : null,
+            'id'                         => $r->id,
+            'fecha_inicio'               => $r->fecha_inicio->format('d/m/Y'),
+            'fecha_fin'                  => $r->fecha_fin->format('d/m/Y'),
+            'num_personas'               => $r->num_personas,
+            'total'                      => $r->total,
+            'estado'                     => $r->estado,
+            'pago_estado'                => $r->pago_estado,
+            'cliente_confirmo_llegada'   => $r->cliente_confirmo_llegada,
+            'fecha_confirmacion_llegada' => $r->fecha_confirmacion_llegada ? $r->fecha_confirmacion_llegada->format('d/m/Y H:i') : null,
+            'notas'                      => $r->notas,
+            'cliente'                    => $r->cliente ? ['nombre' => $r->cliente->nombre, 'apellido' => $r->cliente->apellido] : null,
+            'hospedaje'                  => $r->hospedaje ? ['nombre' => $r->hospedaje->nombre, 'ubicacion' => $r->hospedaje->ubicacion] : null,
         ];
     }
 
@@ -69,7 +72,7 @@ class ReservaWebController extends Controller
         $dias  = \Carbon\Carbon::parse($fechaInicio)->diffInDays($fechaFin);
         $total = $dias * $hospedaje->precio_noche;
 
-        Reserva::create([
+        $reserva = Reserva::create([
             'user_id'      => session('user_data.id'),
             'hospedaje_id' => $request->hospedaje_id,
             'fecha_inicio' => $fechaInicio,
@@ -78,9 +81,11 @@ class ReservaWebController extends Controller
             'total'        => $total,
             'notas'        => $request->notas,
             'estado'       => 'pendiente',
+            'pago_estado'  => 'pendiente',
         ]);
 
-        return redirect()->route('reservas.index')->with('success', 'Reserva creada exitosamente');
+        return redirect()->route('pagos.checkout', $reserva->id)
+            ->with('success', '¡Reserva creada! Por favor realiza el pago para confirmarla.');
     }
 
     public function cancelar($id)

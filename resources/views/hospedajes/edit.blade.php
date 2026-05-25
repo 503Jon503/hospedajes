@@ -75,4 +75,24 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Imagen
+                        <label class="form-label">Imagen (dejar vacío para mantener la actual)</label>
+                        <input type="file" name="imagen" class="form-control" accept="image/*">
+                        @if($hospedaje['imagen'])
+                            <div class="mt-2">
+                                <p class="text-muted small mb-1">Imagen actual:</p>
+                                <img src="{{ $hospedaje['imagen'] }}" class="rounded" style="height:100px; width:auto; object-fit:cover;">
+                            </div>
+                        @endif
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-save"></i> Guardar cambios
+                        </button>
+                        <a href="{{ route('hospedajes.mis') }}" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
