@@ -33,6 +33,7 @@ Route::middleware('auth.session')->group(function () {
     Route::get('/hospedajes/{id}/editar', [HospedajeWebController::class, 'edit'])->name('hospedajes.edit');
     Route::put('/hospedajes/{id}', [HospedajeWebController::class, 'update'])->name('hospedajes.update');
     Route::delete('/hospedajes/{id}', [HospedajeWebController::class, 'destroy'])->name('hospedajes.destroy');
+    Route::delete('/fotos/{id}', [HospedajeWebController::class, 'eliminarFoto'])->name('fotos.eliminar');
 
     // Reservas
     Route::get('/reservas', [ReservaWebController::class, 'index'])->name('reservas.index');
@@ -84,5 +85,5 @@ Route::middleware('auth.session')->group(function () {
     });
 });
 
-// Show hospedaje (va al final)
+// Show hospedaje 
 Route::get('/hospedajes/{id}', [HospedajeWebController::class, 'show'])->name('hospedajes.show');

@@ -25,7 +25,7 @@ class Hospedaje extends Model
 
     protected $casts = [
         'precio_noche' => 'decimal:2',
-        'capacidad' => 'integer',
+        'capacidad'    => 'integer',
     ];
 
     public function propietario()
@@ -41,6 +41,11 @@ class Hospedaje extends Model
     public function calificaciones()
     {
         return $this->hasMany(Calificacion::class);
+    }
+
+    public function fotos()
+    {
+        return $this->hasMany(FotoHospedaje::class)->orderBy('orden');
     }
 
     public function promedioCalificacion()

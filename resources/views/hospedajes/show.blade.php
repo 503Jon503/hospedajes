@@ -6,7 +6,33 @@
 <div class="container py-5">
     <div class="row">
         <div class="col-md-8">
-            @if($hospedaje['imagen'])
+
+            {{-- Galería de fotos --}}
+            @if(!empty($hospedaje['fotos']) && count($hospedaje['fotos']) > 0)
+                <div id="carouselFotos" class="carousel slide mb-4" data-bs-ride="carousel">
+                    <div class="carousel-indicators">
+                        @foreach($hospedaje['fotos'] as $index => $foto)
+                            <button type="button" data-bs-target="#carouselFotos" data-bs-slide-to="{{ $index }}"
+                                class="{{ $index === 0 ? 'active' : '' }}"></button>
+                        @endforeach
+                    </div>
+                    <div class="carousel-inner rounded">
+                        @foreach($hospedaje['fotos'] as $index => $foto)
+                            <div class="carousel-item {{ $index === 0 ? 'active' : '' }}">
+                                <img src="{{ $foto }}" class="d-block w-100" style="height:400px; object-fit:cover;" alt="Foto {{ $index + 1 }}">
+                            </div>
+                        @endforeach
+                    </div>
+                    @if(count($hospedaje['fotos']) > 1)
+                    <button class="carousel-control-prev" type="button" data-bs-target="#carouselFotos" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon"></span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#carouselFotos" data-bs-slide="next">
+                        <span class="carousel-control-next-icon"></span>
+                    </button>
+                    @endif
+                </div>
+            @elseif($hospedaje['imagen'])
                 <img src="{{ $hospedaje['imagen'] }}" class="img-fluid rounded mb-4 w-100" style="height:400px; object-fit:cover" alt="{{ $hospedaje['nombre'] }}">
             @else
                 <div class="bg-light rounded mb-4 d-flex align-items-center justify-content-center" style="height:400px">

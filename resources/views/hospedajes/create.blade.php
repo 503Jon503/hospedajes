@@ -74,9 +74,16 @@
                         <input type="number" name="precio_noche" class="form-control" min="1" step="0.01" value="{{ old('precio_noche') }}" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Imagen</label>
+                        <label class="form-label">Imagen principal</label>
                         <input type="file" name="imagen" class="form-control" accept="image/*">
+                        <small class="text-muted">Esta será la imagen que aparece en la lista de hospedajes.</small>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fotos adicionales</label>
+                        <input type="file" name="fotos[]" class="form-control" accept="image/*" multiple>
+                        <small class="text-muted">Puedes seleccionar varias fotos a la vez (Ctrl+Click).</small>
+                    </div>
+                    <div id="preview-fotos" class="row g-2 mb-3"></div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save"></i> Publicar
@@ -88,4 +95,23 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    document.querySelector('input[name="fotos[]"]').addEventListener('change', function(e) {
+        const preview = document.getElementById('preview-fotos');
+        preview.innerHTML = '';
+        Array.from(e.target.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML += `
+                    <div class="col-md-3">
+                        <img src="${e.target.result}" class="img-fluid rounded" style="height:100px; width:100%; object-fit:cover;">
+                    </div>`;
+            }
+            reader.readAsDataURL(file);
+        });
+    });
+</script>
 @endsection

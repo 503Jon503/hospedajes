@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FotoHospedaje;
 use App\Models\Hospedaje;
 use App\Models\Reserva;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class HospedajeWebController extends Controller
             'precio_noche'          => $h->precio_noche,
             'capacidad'             => $h->capacidad,
             'imagen'                => $h->imagen ? asset('storage/' . $h->imagen) : null,
+            'fotos'                 => $h->fotos->map(fn($f) => asset('storage/' . $f->ruta))->toArray(),
             'estado'                => $h->estado,
             'promedio_calificacion' => round($h->promedioCalificacion(), 1),
             'total_calificaciones'  => $h->calificaciones->count(),
@@ -36,7 +38,7 @@ class HospedajeWebController extends Controller
 
     public function index(Request $request)
     {
-        $query = Hospedaje::with(['propietario', 'calificaciones'])->disponible();
+        $query = Hospedaje::with(['propietario', 'calificaciones', 'fotos'])->disponible();
 
         if ($request->buscar) {
             $query->where('nombre', 'like', "%{$request->buscar}%");
@@ -58,7 +60,7 @@ class HospedajeWebController extends Controller
 
     public function show($id)
     {
-        $h = Hospedaje::with(['propietario', 'calificaciones.cliente'])->findOrFail($id);
+        $h = Hospedaje::with(['propietario', 'calificaciones.cliente', 'fotos'])->findOrFail($id);
         $hospedaje = $this->formatHospedaje($h);
 
         $reservas = Reserva::where('hospedaje_id', $id)
@@ -88,7 +90,7 @@ class HospedajeWebController extends Controller
     public function misHospedajes()
     {
         $userData = session('user_data');
-        $data = Hospedaje::with(['calificaciones'])
+        $data = Hospedaje::with(['calificaciones', 'fotos'])
             ->where('user_id', $userData['id'])
             ->get()->map(fn($h) => $this->formatHospedaje($h))->toArray();
         $hospedajes = ['data' => $data];
@@ -110,7 +112,8 @@ class HospedajeWebController extends Controller
             'departamento' => 'required|string|max:100',
             'precio_noche' => 'required|numeric|min:1',
             'capacidad'    => 'required|integer|min:1',
-            'imagen'       => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'imagen'       => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,bmp|max:5120',
+            'fotos.*'      => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,bmp|max:5120',
             'estado'       => 'nullable|in:disponible,no_disponible',
         ]);
 
@@ -120,16 +123,28 @@ class HospedajeWebController extends Controller
             $data['imagen'] = $request->file('imagen')->store('hospedajes', 'public');
         }
 
-        Hospedaje::create($data);
+        $hospedaje = Hospedaje::create($data);
+
+        if ($request->hasFile('fotos')) {
+            foreach ($request->file('fotos') as $index => $foto) {
+                $ruta = $foto->store('hospedajes/fotos', 'public');
+                FotoHospedaje::create([
+                    'hospedaje_id' => $hospedaje->id,
+                    'ruta'         => $ruta,
+                    'orden'        => $index,
+                ]);
+            }
+        }
 
         return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje creado exitosamente');
     }
 
     public function edit($id)
     {
-        $h = Hospedaje::with(['propietario', 'calificaciones'])->findOrFail($id);
+        $h = Hospedaje::with(['propietario', 'calificaciones', 'fotos'])->findOrFail($id);
         $hospedaje = $this->formatHospedaje($h);
-        return view('hospedajes.edit', compact('hospedaje'));
+        $fotos = FotoHospedaje::where('hospedaje_id', $id)->get();
+        return view('hospedajes.edit', compact('hospedaje', 'fotos'));
     }
 
     public function update(Request $request, $id)
@@ -144,7 +159,8 @@ class HospedajeWebController extends Controller
             'departamento' => 'sometimes|string|max:100',
             'precio_noche' => 'sometimes|numeric|min:1',
             'capacidad'    => 'sometimes|integer|min:1',
-            'imagen'       => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'imagen'       => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,bmp|max:5120',
+            'fotos.*'      => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,bmp|max:5120',
             'estado'       => 'sometimes|in:disponible,no_disponible',
         ]);
 
@@ -154,7 +170,27 @@ class HospedajeWebController extends Controller
 
         $hospedaje->update($data);
 
+        if ($request->hasFile('fotos')) {
+            $totalFotos = FotoHospedaje::where('hospedaje_id', $id)->count();
+            foreach ($request->file('fotos') as $index => $foto) {
+                $ruta = $foto->store('hospedajes/fotos', 'public');
+                FotoHospedaje::create([
+                    'hospedaje_id' => $hospedaje->id,
+                    'ruta'         => $ruta,
+                    'orden'        => $totalFotos + $index,
+                ]);
+            }
+        }
+
         return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje actualizado exitosamente');
+    }
+
+    public function eliminarFoto($id)
+    {
+        $foto = FotoHospedaje::findOrFail($id);
+        \Storage::disk('public')->delete($foto->ruta);
+        $foto->delete();
+        return back()->with('success', 'Foto eliminada exitosamente');
     }
 
     public function destroy($id)

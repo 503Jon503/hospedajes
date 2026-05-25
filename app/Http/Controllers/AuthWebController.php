@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthWebController extends Controller
@@ -95,6 +94,14 @@ class AuthWebController extends Controller
             $user->tokens()->delete();
         }
         session()->flush();
-        return redirect()->route('login')->with('success', 'Sesión cerrada exitosamente');
+        session()->regenerate();
+
+        return redirect()->route('login')
+            ->with('success', 'Sesión cerrada exitosamente')
+            ->withHeaders([
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+                'Pragma'        => 'no-cache',
+                'Expires'       => 'Sat, 01 Jan 2000 00:00:00 GMT',
+            ]);
     }
 }

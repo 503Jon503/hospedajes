@@ -75,7 +75,7 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Imagen (dejar vacío para mantener la actual)</label>
+                        <label class="form-label">Imagen principal (dejar vacío para mantener la actual)</label>
                         <input type="file" name="imagen" class="form-control" accept="image/*">
                         @if($hospedaje['imagen'])
                             <div class="mt-2">
@@ -84,6 +84,14 @@
                             </div>
                         @endif
                     </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Agregar más fotos</label>
+                        <input type="file" name="fotos[]" class="form-control" accept="image/*" multiple>
+                        <small class="text-muted">Puedes seleccionar varias fotos a la vez (Ctrl+Click).</small>
+                    </div>
+                    <div id="preview-fotos" class="row g-2 mb-3"></div>
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-warning">
                             <i class="bi bi-save"></i> Guardar cambios
@@ -91,8 +99,51 @@
                         <a href="{{ route('hospedajes.mis') }}" class="btn btn-outline-secondary">Cancelar</a>
                     </div>
                 </form>
+
+                {{-- Fotos actuales FUERA del formulario principal --}}
+                @if(!empty($fotos) && $fotos->count() > 0)
+                <hr>
+                <h6 class="mt-3">Fotos actuales</h6>
+                <div class="row g-2">
+                    @foreach($fotos as $foto)
+                    <div class="col-md-3" id="foto-{{ $foto->id }}">
+                        <div class="position-relative">
+                            <img src="{{ asset('storage/' . $foto->ruta) }}" class="img-fluid rounded" style="height:100px; width:100%; object-fit:cover;">
+                            <form action="{{ route('fotos.eliminar', $foto->id) }}" method="POST"
+                                onsubmit="return confirm('¿Eliminar esta foto?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
+
             </div>
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    document.querySelector('input[name="fotos[]"]').addEventListener('change', function(e) {
+        const preview = document.getElementById('preview-fotos');
+        preview.innerHTML = '';
+        Array.from(e.target.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML += `
+                    <div class="col-md-3">
+                        <img src="${e.target.result}" class="img-fluid rounded" style="height:100px; width:100%; object-fit:cover;">
+                    </div>`;
+            }
+            reader.readAsDataURL(file);
+        });
+    });
+</script>
 @endsection

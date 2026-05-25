@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'HospedajesES')</title>
@@ -110,5 +113,22 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 @yield('scripts')
+<script>
+    // Evitar que el botón atrás muestre páginas cacheadas
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+
+    @if(!session('user_token'))
+    // Si no hay sesión y estamos en página protegida, redirigir
+    const rutasProtegidas = ['/reservas', '/mis-hospedajes', '/admin', '/pagos'];
+    const rutaActual = window.location.pathname;
+    if (rutasProtegidas.some(r => rutaActual.startsWith(r))) {
+        window.location.href = '/login';
+    }
+    @endif
+</script>
 </body>
 </html>
