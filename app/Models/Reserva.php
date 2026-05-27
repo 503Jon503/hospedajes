@@ -18,6 +18,7 @@ class Reserva extends Model
         'num_personas',
         'total',
         'estado',
+        'estado_propietario',
         'pago_estado',
         'stripe_payment_intent',
         'cliente_confirmo_llegada',

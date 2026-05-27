@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthWebController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\HospedajeWebController;
+use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\PagoController;
 use App\Http\Controllers\ReservaWebController;
 use App\Models\Calificacion;
@@ -38,15 +39,22 @@ Route::middleware('auth.session')->group(function () {
     // Reservas
     Route::get('/reservas', [ReservaWebController::class, 'index'])->name('reservas.index');
     Route::post('/reservas', [ReservaWebController::class, 'store'])->name('reservas.store');
+    Route::patch('/reservas/{id}/aceptar', [ReservaWebController::class, 'aceptar'])->name('reservas.aceptar');
+    Route::patch('/reservas/{id}/rechazar', [ReservaWebController::class, 'rechazar'])->name('reservas.rechazar');
     Route::patch('/reservas/{id}/cancelar', [ReservaWebController::class, 'cancelar'])->name('reservas.cancelar');
     Route::patch('/reservas/{id}/confirmar', [ReservaWebController::class, 'confirmar'])->name('reservas.confirmar');
+    Route::patch('/reservas/{id}/reembolsar', [PagoController::class, 'reembolsar'])->name('reservas.reembolsar');
 
     // Pagos
     Route::get('/pagos/{reserva}/checkout', [PagoController::class, 'checkout'])->name('pagos.checkout');
     Route::post('/pagos/{reserva}/procesar', [PagoController::class, 'procesar'])->name('pagos.procesar');
     Route::get('/pagos/{reserva}/exitoso', [PagoController::class, 'exitoso'])->name('pagos.exitoso');
     Route::patch('/pagos/{reserva}/confirmar-llegada', [PagoController::class, 'confirmarLlegada'])->name('pagos.confirmarLlegada');
-    Route::patch('/pagos/{reserva}/liberar', [PagoController::class, 'liberar'])->name('pagos.liberar');
+
+    // Notificaciones
+    Route::get('/notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::patch('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida'])->name('notificaciones.leer');
+    Route::delete('/notificaciones/{id}', [NotificacionController::class, 'eliminar'])->name('notificaciones.eliminar');
 
     // Calificaciones
     Route::post('/hospedajes/{id}/calificaciones', function (Request $request, $id) {
@@ -73,6 +81,10 @@ Route::middleware('auth.session')->group(function () {
         return back()->with('success', '¡Calificación enviada exitosamente!');
     })->name('calificaciones.store');
 
+    // Perfil propietario
+    Route::get('/perfil', [AuthWebController::class, 'perfil'])->name('perfil');
+    Route::put('/perfil', [AuthWebController::class, 'actualizarPerfil'])->name('perfil.update');
+
     // Admin
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
@@ -82,8 +94,9 @@ Route::middleware('auth.session')->group(function () {
         Route::get('/hospedajes', [AdminController::class, 'hospedajes'])->name('hospedajes');
         Route::delete('/hospedajes/{hospedaje}', [AdminController::class, 'eliminarHospedaje'])->name('hospedajes.eliminar');
         Route::get('/reservas', [AdminController::class, 'reservas'])->name('reservas');
+        Route::patch('/reservas/{id}/reembolsar', [PagoController::class, 'reembolsar'])->name('reservas.reembolsar');
     });
 });
 
-// Show hospedaje 
+// Show hospedaje
 Route::get('/hospedajes/{id}', [HospedajeWebController::class, 'show'])->name('hospedajes.show');

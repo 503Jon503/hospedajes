@@ -33,12 +33,15 @@ class AuthWebController extends Controller
 
         session(['user_token' => $token]);
         session(['user_data'  => [
-            'id'       => $user->id,
-            'nombre'   => $user->nombre,
-            'apellido' => $user->apellido,
-            'email'    => $user->email,
-            'telefono' => $user->telefono,
-            'rol'      => $user->rol,
+            'id'              => $user->id,
+            'nombre'          => $user->nombre,
+            'apellido'        => $user->apellido,
+            'email'           => $user->email,
+            'telefono'        => $user->telefono,
+            'rol'             => $user->rol,
+            'cuenta_bancaria' => $user->cuenta_bancaria,
+            'banco'           => $user->banco,
+            'nombre_cuenta'   => $user->nombre_cuenta,
         ]]);
 
         return redirect()->route('home')->with('success', '¡Bienvenido ' . $user->nombre . '!');
@@ -55,12 +58,12 @@ class AuthWebController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'nombre'            => 'required|string|max:100',
-            'apellido'          => 'required|string|max:100',
-            'email'             => 'required|email|unique:users,email',
-            'telefono'          => 'nullable|string|max:20',
-            'rol'               => 'required|in:cliente,propietario',
-            'password'          => 'required|min:8|confirmed',
+            'nombre'   => 'required|string|max:100',
+            'apellido' => 'required|string|max:100',
+            'email'    => 'required|email|unique:users,email',
+            'telefono' => 'nullable|string|max:20',
+            'rol'      => 'required|in:cliente,propietario',
+            'password' => 'required|min:8|confirmed',
         ]);
 
         $user = User::create([
@@ -76,12 +79,15 @@ class AuthWebController extends Controller
 
         session(['user_token' => $token]);
         session(['user_data'  => [
-            'id'       => $user->id,
-            'nombre'   => $user->nombre,
-            'apellido' => $user->apellido,
-            'email'    => $user->email,
-            'telefono' => $user->telefono,
-            'rol'      => $user->rol,
+            'id'              => $user->id,
+            'nombre'          => $user->nombre,
+            'apellido'        => $user->apellido,
+            'email'           => $user->email,
+            'telefono'        => $user->telefono,
+            'rol'             => $user->rol,
+            'cuenta_bancaria' => null,
+            'banco'           => null,
+            'nombre_cuenta'   => null,
         ]]);
 
         return redirect()->route('home')->with('success', '¡Cuenta creada exitosamente!');
@@ -103,5 +109,53 @@ class AuthWebController extends Controller
                 'Pragma'        => 'no-cache',
                 'Expires'       => 'Sat, 01 Jan 2000 00:00:00 GMT',
             ]);
+    }
+
+    public function perfil()
+    {
+        $user = User::findOrFail(session('user_data.id'));
+        return view('auth.perfil', compact('user'));
+    }
+
+    public function actualizarPerfil(Request $request)
+    {
+        $user = User::findOrFail(session('user_data.id'));
+
+        $rules = [
+            'nombre'          => 'required|string|max:100',
+            'apellido'        => 'required|string|max:100',
+            'telefono'        => 'nullable|string|max:20',
+            'cuenta_bancaria' => 'nullable|string|max:50',
+            'banco'           => 'nullable|string|max:100',
+            'nombre_cuenta'   => 'nullable|string|max:100',
+        ];
+
+        if ($request->password) {
+            $rules['password'] = 'min:8|confirmed';
+        }
+
+        $request->validate($rules);
+
+        $data = $request->only(['nombre', 'apellido', 'telefono', 'cuenta_bancaria', 'banco', 'nombre_cuenta']);
+
+        if ($request->password) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        $user->update($data);
+
+        session(['user_data' => [
+            'id'              => $user->id,
+            'nombre'          => $user->nombre,
+            'apellido'        => $user->apellido,
+            'email'           => $user->email,
+            'telefono'        => $user->telefono,
+            'rol'             => $user->rol,
+            'cuenta_bancaria' => $user->cuenta_bancaria,
+            'banco'           => $user->banco,
+            'nombre_cuenta'   => $user->nombre_cuenta,
+        ]]);
+
+        return redirect()->route('perfil')->with('success', 'Perfil actualizado exitosamente');
     }
 }

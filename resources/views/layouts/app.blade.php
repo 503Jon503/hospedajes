@@ -1,23 +1,26 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>@yield('title', 'HospedajesES')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
+        body { background-color: #f8f9fa; display: flex; flex-direction: column; min-height: 100vh; }
+        main { flex: 1; }
         .navbar-brand { font-weight: bold; font-size: 1.5rem; }
         .card { border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-radius: 12px; }
         .card-img-top { border-radius: 12px 12px 0 0; height: 200px; object-fit: cover; }
-        .badge-tipo { font-size: 0.75rem; }
         .precio { font-size: 1.3rem; font-weight: bold; color: #198754; }
         .hero { background: linear-gradient(135deg, #0d6efd, #0dcaf0); color: white; padding: 80px 0; }
         .footer { background: #212529; color: #adb5bd; padding: 30px 0; margin-top: 60px; }
+        .notif-badge { font-size: 0.6rem; padding: 2px 5px; }
+        .navbar { z-index: 1050; }
+        .dropdown-menu { z-index: 1051; }
     </style>
 </head>
 <body>
@@ -58,12 +61,34 @@
             </ul>
             <ul class="navbar-nav">
                 @if(session('user_token'))
+
+                {{-- Notificaciones --}}
+                <li class="nav-item">
+                    <a class="nav-link position-relative" href="{{ route('notificaciones.index') }}">
+                        <i class="bi bi-bell-fill"></i>
+                        @php
+                            $totalNotif = \App\Models\Notificacion::where('user_id', session('user_data.id'))->where('leida', false)->count();
+                        @endphp
+                        @if($totalNotif > 0)
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notif-badge">
+                                {{ $totalNotif }}
+                            </span>
+                        @endif
+                    </a>
+                </li>
+
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle"></i> {{ session('user_data.nombre') }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><span class="dropdown-item-text text-muted small">{{ session('user_data.rol') }}</span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ route('perfil') }}">
+                                <i class="bi bi-person"></i> Mi perfil
+                            </a>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form action="{{ route('logout') }}" method="POST">
@@ -112,23 +137,13 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-@yield('scripts')
 <script>
-    // Evitar que el botón atrás muestre páginas cacheadas
     window.addEventListener('pageshow', function(event) {
         if (event.persisted) {
             window.location.reload();
         }
     });
-
-    @if(!session('user_token'))
-    // Si no hay sesión y estamos en página protegida, redirigir
-    const rutasProtegidas = ['/reservas', '/mis-hospedajes', '/admin', '/pagos'];
-    const rutaActual = window.location.pathname;
-    if (rutasProtegidas.some(r => rutaActual.startsWith(r))) {
-        window.location.href = '/login';
-    }
-    @endif
 </script>
+@yield('scripts')
 </body>
 </html>

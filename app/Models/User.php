@@ -18,6 +18,9 @@ class User extends Authenticatable
         'email',
         'telefono',
         'rol',
+        'cuenta_bancaria',
+        'banco',
+        'nombre_cuenta',
         'password',
     ];
 
@@ -30,7 +33,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
         ];
     }
 
@@ -47,6 +50,11 @@ class User extends Authenticatable
     public function calificaciones()
     {
         return $this->hasMany(Calificacion::class);
+    }
+
+    public function notificaciones()
+    {
+        return $this->hasMany(Notificacion::class);
     }
 
     public function esAdmin()

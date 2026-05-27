@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hospedaje;
+use App\Models\Notificacion;
 use App\Models\Reserva;
 use Illuminate\Http\Request;
 
@@ -17,12 +18,23 @@ class ReservaWebController extends Controller
             'num_personas'               => $r->num_personas,
             'total'                      => $r->total,
             'estado'                     => $r->estado,
+            'estado_propietario'         => $r->estado_propietario,
             'pago_estado'                => $r->pago_estado,
             'cliente_confirmo_llegada'   => $r->cliente_confirmo_llegada,
             'fecha_confirmacion_llegada' => $r->fecha_confirmacion_llegada ? $r->fecha_confirmacion_llegada->format('d/m/Y H:i') : null,
             'notas'                      => $r->notas,
-            'cliente'                    => $r->cliente ? ['nombre' => $r->cliente->nombre, 'apellido' => $r->cliente->apellido] : null,
-            'hospedaje'                  => $r->hospedaje ? ['nombre' => $r->hospedaje->nombre, 'ubicacion' => $r->hospedaje->ubicacion] : null,
+            'cliente'                    => $r->cliente ? [
+                'id'       => $r->cliente->id,
+                'nombre'   => $r->cliente->nombre,
+                'apellido' => $r->cliente->apellido,
+                'email'    => $r->cliente->email,
+                'telefono' => $r->cliente->telefono,
+            ] : null,
+            'hospedaje'                  => $r->hospedaje ? [
+                'id'       => $r->hospedaje->id,
+                'nombre'   => $r->hospedaje->nombre,
+                'ubicacion'=> $r->hospedaje->ubicacion,
+            ] : null,
         ];
     }
 
@@ -53,13 +65,14 @@ class ReservaWebController extends Controller
             'num_personas' => 'required|integer|min:1',
         ]);
 
-        $hospedaje = Hospedaje::findOrFail($request->hospedaje_id);
+        $hospedaje = Hospedaje::with('propietario')->findOrFail($request->hospedaje_id);
 
         $fechaInicio = \Carbon\Carbon::parse($request->fecha_inicio)->format('Y-m-d');
         $fechaFin    = \Carbon\Carbon::parse($request->fecha_fin)->format('Y-m-d');
 
         $conflicto = Reserva::where('hospedaje_id', $hospedaje->id)
             ->where('estado', '!=', 'cancelada')
+            ->where('estado_propietario', '!=', 'rechazada')
             ->where(function ($q) use ($fechaInicio, $fechaFin) {
                 $q->whereBetween('fecha_inicio', [$fechaInicio, $fechaFin])
                   ->orWhereBetween('fecha_fin', [$fechaInicio, $fechaFin]);
@@ -73,25 +86,84 @@ class ReservaWebController extends Controller
         $total = $dias * $hospedaje->precio_noche;
 
         $reserva = Reserva::create([
-            'user_id'      => session('user_data.id'),
-            'hospedaje_id' => $request->hospedaje_id,
-            'fecha_inicio' => $fechaInicio,
-            'fecha_fin'    => $fechaFin,
-            'num_personas' => $request->num_personas,
-            'total'        => $total,
-            'notas'        => $request->notas,
-            'estado'       => 'pendiente',
-            'pago_estado'  => 'pendiente',
+            'user_id'            => session('user_data.id'),
+            'hospedaje_id'       => $request->hospedaje_id,
+            'fecha_inicio'       => $fechaInicio,
+            'fecha_fin'          => $fechaFin,
+            'num_personas'       => $request->num_personas,
+            'total'              => $total,
+            'notas'              => $request->notas,
+            'estado'             => 'pendiente',
+            'estado_propietario' => 'pendiente',
+            'pago_estado'        => 'pendiente',
         ]);
 
-        return redirect()->route('pagos.checkout', $reserva->id)
-            ->with('success', '¡Reserva creada! Por favor realiza el pago para confirmarla.');
+        // Notificar al propietario
+        Notificacion::enviar(
+            $hospedaje->user_id,
+            '🏠 Nueva solicitud de reserva',
+            session('user_data.nombre') . ' ' . session('user_data.apellido') . ' quiere reservar ' . $hospedaje->nombre . ' del ' . \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') . ' al ' . \Carbon\Carbon::parse($fechaFin)->format('d/m/Y'),
+            'info',
+            route('reservas.index')
+        );
+
+        return redirect()->route('reservas.index')
+            ->with('success', '¡Solicitud enviada! Espera a que el propietario la acepte.');
+    }
+
+    public function aceptar($id)
+    {
+        $reserva = Reserva::with(['cliente', 'hospedaje'])->findOrFail($id);
+
+        $reserva->update(['estado_propietario' => 'aceptada']);
+
+        // Notificar al cliente
+        Notificacion::enviar(
+            $reserva->user_id,
+            '✅ Reserva aceptada',
+            'Tu solicitud para ' . $reserva->hospedaje->nombre . ' fue aceptada. Procede a realizar el pago.',
+            'success',
+            route('pagos.checkout', $reserva->id)
+        );
+
+        return back()->with('success', 'Reserva aceptada. El cliente será notificado para que realice el pago.');
+    }
+
+    public function rechazar($id)
+    {
+        $reserva = Reserva::with(['cliente', 'hospedaje'])->findOrFail($id);
+
+        $reserva->update([
+            'estado_propietario' => 'rechazada',
+            'estado'             => 'cancelada',
+        ]);
+
+        // Notificar al cliente
+        Notificacion::enviar(
+            $reserva->user_id,
+            '❌ Reserva rechazada',
+            'Tu solicitud para ' . $reserva->hospedaje->nombre . ' fue rechazada por el propietario.',
+            'danger',
+            route('reservas.index')
+        );
+
+        return back()->with('success', 'Reserva rechazada.');
     }
 
     public function cancelar($id)
     {
-        $reserva = Reserva::findOrFail($id);
+        $reserva = Reserva::with(['hospedaje', 'hospedaje.propietario'])->findOrFail($id);
         $reserva->update(['estado' => 'cancelada']);
+
+        // Notificar al propietario
+        Notificacion::enviar(
+            $reserva->hospedaje->user_id,
+            '❌ Reserva cancelada por cliente',
+            session('user_data.nombre') . ' canceló su reserva en ' . $reserva->hospedaje->nombre,
+            'warning',
+            route('reservas.index')
+        );
+
         return redirect()->route('reservas.index')->with('success', 'Reserva cancelada exitosamente');
     }
 

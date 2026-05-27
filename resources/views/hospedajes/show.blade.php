@@ -119,7 +119,7 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card sticky-top" style="top: 20px">
+            <div class="card sticky-top" style="top: 20px; z-index: 100;">
                 <div class="card-body">
                     <h3 class="precio text-center mb-4">${{ number_format($hospedaje['precio_noche'], 2) }}<small class="text-muted fs-6">/noche</small></h3>
 
