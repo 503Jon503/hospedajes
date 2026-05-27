@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Hospedaje;
 use App\Models\Notificacion;
 use App\Models\Reserva;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ReservaWebController extends Controller
@@ -31,9 +32,9 @@ class ReservaWebController extends Controller
                 'telefono' => $r->cliente->telefono,
             ] : null,
             'hospedaje'                  => $r->hospedaje ? [
-                'id'       => $r->hospedaje->id,
-                'nombre'   => $r->hospedaje->nombre,
-                'ubicacion'=> $r->hospedaje->ubicacion,
+                'id'        => $r->hospedaje->id,
+                'nombre'    => $r->hospedaje->nombre,
+                'ubicacion' => $r->hospedaje->ubicacion,
             ] : null,
         ];
     }
@@ -98,7 +99,6 @@ class ReservaWebController extends Controller
             'pago_estado'        => 'pendiente',
         ]);
 
-        // Notificar al propietario
         Notificacion::enviar(
             $hospedaje->user_id,
             '🏠 Nueva solicitud de reserva',
@@ -115,9 +115,14 @@ class ReservaWebController extends Controller
     {
         $reserva = Reserva::with(['cliente', 'hospedaje'])->findOrFail($id);
 
+        $propietario = User::findOrFail(session('user_data.id'));
+
+        if (!$propietario->cuenta_bancaria || !$propietario->banco) {
+            return back()->with('error', '⚠️ Debes registrar tu cuenta bancaria antes de aceptar reservas. Ve a Mi Perfil → Cuenta bancaria para pagos.');
+        }
+
         $reserva->update(['estado_propietario' => 'aceptada']);
 
-        // Notificar al cliente
         Notificacion::enviar(
             $reserva->user_id,
             '✅ Reserva aceptada',
@@ -138,7 +143,6 @@ class ReservaWebController extends Controller
             'estado'             => 'cancelada',
         ]);
 
-        // Notificar al cliente
         Notificacion::enviar(
             $reserva->user_id,
             '❌ Reserva rechazada',
@@ -155,7 +159,6 @@ class ReservaWebController extends Controller
         $reserva = Reserva::with(['hospedaje', 'hospedaje.propietario'])->findOrFail($id);
         $reserva->update(['estado' => 'cancelada']);
 
-        // Notificar al propietario
         Notificacion::enviar(
             $reserva->hospedaje->user_id,
             '❌ Reserva cancelada por cliente',
