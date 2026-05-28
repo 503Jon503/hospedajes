@@ -193,10 +193,21 @@ class HospedajeWebController extends Controller
         return back()->with('success', 'Foto eliminada exitosamente');
     }
 
-    public function destroy($id)
-    {
-        $hospedaje = Hospedaje::findOrFail($id);
-        $hospedaje->delete();
-        return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje eliminado exitosamente');
+   public function destroy($id)
+{
+    $hospedaje = Hospedaje::findOrFail($id);
+
+    $reservasActivas = Reserva::where('hospedaje_id', $id)
+        ->whereIn('estado', ['pendiente', 'confirmada'])
+        ->whereIn('pago_estado', ['pendiente', 'retenido'])
+        ->exists();
+
+    if ($reservasActivas) {
+        return redirect()->route('hospedajes.mis')
+            ->with('error', '⚠️ Reservas activas, no puedes eliminar este hospedaje aún');
     }
+
+    $hospedaje->delete();
+    return redirect()->route('hospedajes.mis')->with('success', 'Hospedaje eliminado exitosamente.');
+}
 }

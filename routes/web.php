@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthWebController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\HospedajeWebController;
 use App\Http\Controllers\NotificacionController;
@@ -51,6 +52,10 @@ Route::middleware('auth.session')->group(function () {
     Route::get('/pagos/{reserva}/exitoso', [PagoController::class, 'exitoso'])->name('pagos.exitoso');
     Route::patch('/pagos/{reserva}/confirmar-llegada', [PagoController::class, 'confirmarLlegada'])->name('pagos.confirmarLlegada');
 
+    // Chat
+    Route::get('/chat/{reserva}', [ChatController::class, 'show'])->name('chat.show');
+    Route::post('/chat/{reserva}', [ChatController::class, 'enviar'])->name('chat.enviar');
+
     // Notificaciones
     Route::get('/notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
     Route::patch('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida'])->name('notificaciones.leer');
@@ -81,7 +86,7 @@ Route::middleware('auth.session')->group(function () {
         return back()->with('success', '¡Calificación enviada exitosamente!');
     })->name('calificaciones.store');
 
-    // Perfil propietario
+    // Perfil
     Route::get('/perfil', [AuthWebController::class, 'perfil'])->name('perfil');
     Route::put('/perfil', [AuthWebController::class, 'actualizarPerfil'])->name('perfil.update');
 

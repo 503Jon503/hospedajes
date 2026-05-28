@@ -39,23 +39,42 @@ class ReservaWebController extends Controller
         ];
     }
 
-    public function index()
-    {
-        $user = session('user_data');
-        $query = Reserva::with(['cliente', 'hospedaje']);
+ public function index()
+{
+    // Expirar reservas pendientes automáticamente
+    Reserva::where('estado_propietario', 'pendiente')
+        ->where('estado', 'pendiente')
+        ->where('fecha_inicio', '<', now()->format('Y-m-d'))
+        ->each(function ($reserva) {
+            $reserva->update([
+                'estado'             => 'cancelada',
+                'estado_propietario' => 'rechazada',
+            ]);
 
-        if ($user['rol'] === 'admin') {
-            $reservas = $query->get();
-        } elseif ($user['rol'] === 'propietario') {
-            $reservas = $query->whereHas('hospedaje', fn($q) => $q->where('user_id', $user['id']))->get();
-        } else {
-            $reservas = $query->where('user_id', $user['id'])->get();
-        }
+            Notificacion::enviar(
+                $reserva->user_id,
+                '⏰ Reserva expirada',
+                'Tu solicitud de reserva en ' . $reserva->hospedaje->nombre . ' expiró porque el propietario no respondió a tiempo.',
+                'warning',
+                route('reservas.index')
+            );
+        });
 
-        $data = $reservas->map(fn($r) => $this->formatReserva($r))->toArray();
-        $reservas = ['data' => $data];
-        return view('reservas.index', compact('reservas'));
+    $user = session('user_data');
+    $query = Reserva::with(['cliente', 'hospedaje']);
+
+    if ($user['rol'] === 'admin') {
+        $reservas = $query->get();
+    } elseif ($user['rol'] === 'propietario') {
+        $reservas = $query->whereHas('hospedaje', fn($q) => $q->where('user_id', $user['id']))->get();
+    } else {
+        $reservas = $query->where('user_id', $user['id'])->get();
     }
+
+    $data = $reservas->map(fn($r) => $this->formatReserva($r))->toArray();
+    $reservas = ['data' => $data];
+    return view('reservas.index', compact('reservas'));
+}
 
     public function store(Request $request)
     {

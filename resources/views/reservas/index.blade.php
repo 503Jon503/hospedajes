@@ -21,7 +21,6 @@
     @else
 
     @if(session('user_data.rol') === 'propietario')
-        {{-- Vista propietario: agrupar por hospedaje --}}
         @php
             $porHospedaje = collect($reservas['data'])->groupBy(fn($r) => $r['hospedaje']['nombre'] ?? 'Sin hospedaje');
         @endphp
@@ -128,6 +127,12 @@
                                             </button>
                                         </form>
                                         @endif
+
+                                        @if($reserva['estado_propietario'] !== 'rechazada' && $reserva['estado'] !== 'cancelada')
+                                        <a href="{{ route('chat.show', $reserva['id']) }}" class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-chat-dots"></i> Chat
+                                        </a>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -208,14 +213,12 @@
                         </td>
                         <td>
                             <div class="d-flex gap-1 flex-wrap">
-                                {{-- Pagar si fue aceptada --}}
                                 @if($reserva['estado_propietario'] === 'aceptada' && $reserva['pago_estado'] === 'pendiente')
                                 <a href="{{ route('pagos.checkout', $reserva['id']) }}" class="btn btn-success btn-sm">
                                     <i class="bi bi-credit-card"></i> Pagar
                                 </a>
                                 @endif
 
-                                {{-- Confirmar llegada --}}
                                 @if($reserva['pago_estado'] === 'retenido' && !$reserva['cliente_confirmo_llegada'])
                                 <form action="{{ route('pagos.confirmarLlegada', $reserva['id']) }}" method="POST"
                                     onsubmit="return confirm('¿Confirmar que ya llegaste? Esto liberará el pago automáticamente.')">
@@ -227,7 +230,6 @@
                                 </form>
                                 @endif
 
-                                {{-- Cancelar si no ha pagado --}}
                                 @if($reserva['estado'] !== 'cancelada' && $reserva['pago_estado'] === 'pendiente')
                                 <form action="{{ route('reservas.cancelar', $reserva['id']) }}" method="POST"
                                     onsubmit="return confirm('¿Cancelar esta reserva?')">
@@ -237,6 +239,12 @@
                                         <i class="bi bi-x-circle"></i> Cancelar
                                     </button>
                                 </form>
+                                @endif
+
+                                @if($reserva['estado_propietario'] !== 'rechazada' && $reserva['estado'] !== 'cancelada')
+                                <a href="{{ route('chat.show', $reserva['id']) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-chat-dots"></i> Chat
+                                </a>
                                 @endif
                             </div>
                         </td>
